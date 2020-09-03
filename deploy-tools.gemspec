@@ -7,4 +7,5 @@ Gem::Specification.new do |s|
   s.authors     = ["Tony Nyurkin"]
   s.email       = 'tony@simplepractice.com'
   s.files       = `git ls-files`.split($\)
+  s.executables = s.files.grep(%r{^bin/}) { |f| File.basename(f) }
 end
