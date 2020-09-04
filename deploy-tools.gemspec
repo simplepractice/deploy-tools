@@ -6,7 +6,7 @@ Gem::Specification.new do |s|
   s.description = "A set of script used for deployment"
   s.authors     = ["Tony Nyurkin"]
   s.email       = 'tony@simplepractice.com'
-  s.files       = `git ls-files bin`.split($\)
+  s.files       = `git ls-files `.split("\n")
   s.executables = ["blue_green_switch", "detect_inative_color"]
   s.add_runtime_dependency 'aws-sdk-elasticloadbalancingv2', '~>1.44'
 end
