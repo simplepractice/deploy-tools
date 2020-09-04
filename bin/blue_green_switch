@@ -1,6 +1,5 @@
 #!/usr/bin/env ruby
 require 'aws-sdk-elasticloadbalancingv2'
-require 'pry'
 
 lb_name = ARGV[0]
 lb_port = 443
