@@ -18,7 +18,7 @@ if rule.actions.first.target_group_arn.include? 'blue'
   puts 'Detected blue tg, switching to green'
   tg_color = tg_green
 elsif rule.actions.first.target_group_arn.include? 'green'
-  puts 'Detected blue green, switching to blue'
+  puts 'Detected green tg, switching to blue'
   tg_color = tg_blue
 else
   fail 'Cannot detect current color'
