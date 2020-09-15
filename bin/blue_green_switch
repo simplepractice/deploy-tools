@@ -1,27 +1,45 @@
 #!/usr/bin/env ruby
-require 'aws-sdk-elasticloadbalancingv2'
 
+require "aws-sdk-elasticloadbalancingv2"
+
+REGION = "us-west-2".freeze
 lb_name = ARGV[0]
 lb_port = 443
 domain = ARGV[1]
 tg_prefix = ARGV[2]
 
-
-client = Aws::ElasticLoadBalancingV2::Client.new
-alb = client.describe_load_balancers.load_balancers.find {|x| x.load_balancer_name==lb_name}
-listener = client.describe_listeners(load_balancer_arn: alb.load_balancer_arn).listeners.find {|x| x.port == lb_port}
-rule = client.describe_rules(listener_arn: listener.listener_arn).rules.find {|x| x.conditions.first.values.include? domain}
-tg_green = client.describe_target_groups.target_groups.find {|x| x.target_group_name == "#{tg_prefix}-green"}
-tg_blue = client.describe_target_groups.target_groups.find {|x| x.target_group_name == "#{tg_prefix}-blue"}
-
-if rule.actions.first.target_group_arn.include? 'blue'
-  puts 'Detected blue tg, switching to green'
-  tg_color = tg_green
-elsif rule.actions.first.target_group_arn.include? 'green'
-  puts 'Detected green tg, switching to blue'
-  tg_color = tg_blue
-else
-  fail 'Cannot detect current color'
+class AWSClient
+  class << self
+    def elbv2
+      @elbv2 ||= Aws::ElasticLoadBalancingV2::Client.new(region: REGION)
+    end
+  end
 end
 
-client.modify_rule(rule_arn: rule.rule_arn, actions: [{ type: 'forward', target_group_arn: tg_color.target_group_arn }])
+
+alb = AWSClient.elbv2.describe_load_balancers.load_balancers.find { |x| x.load_balancer_name == lb_name }
+listener = AWSClient.elbv2.describe_listeners(load_balancer_arn: alb.load_balancer_arn).listeners.find { |x| x.port == lb_port }
+rule = AWSClient.elbv2.describe_rules(listener_arn: listener.listener_arn).rules.find { |x| x.conditions.first.values.include? domain }
+tg_green = AWSClient.elbv2.describe_target_groups.target_groups.find { |x| x.target_group_name == "#{tg_prefix}-green" }
+tg_blue = AWSClient.elbv2.describe_target_groups.target_groups.find { |x| x.target_group_name == "#{tg_prefix}-blue" }
+
+if rule.actions.first.target_group_arn.include? "blue"
+  puts "Detected blue tg, switching to green"
+  tg_color = tg_green.target_group_arn
+elsif rule.actions.first.target_group_arn.include? "green"
+  puts "Detected green tg, switching to blue"
+  tg_color = tg_blue.target_group_arn
+else
+  fail "Cannot detect current color"
+end
+
+targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg_color)
+            .target_health_descriptions.map(&:target)
+
+AWSClient.elbv2.wait_until(
+  :target_in_service,
+  target_group_arn: tg_color,
+  targets: targets
+)
+
+client.modify_rule(rule_arn: rule.rule_arn, actions: [{ type: "forward", target_group_arn: tg_color }])
