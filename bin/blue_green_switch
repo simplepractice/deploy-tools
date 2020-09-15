@@ -42,4 +42,4 @@ AWSClient.elbv2.wait_until(
   targets: targets
 )
 
-client.modify_rule(rule_arn: rule.rule_arn, actions: [{ type: "forward", target_group_arn: tg_color }])
+AWSClient.elbv2.modify_rule(rule_arn: rule.rule_arn, actions: [{ type: "forward", target_group_arn: tg_color }])
