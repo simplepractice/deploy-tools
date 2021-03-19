@@ -7,6 +7,7 @@ lb_name = ARGV[0]
 lb_port = 443
 domain = ARGV[1]
 tg_prefix = ARGV[2]
+color = ARGV[3]
 
 class AWSClient
   class << self
@@ -23,14 +24,14 @@ rule = AWSClient.elbv2.describe_rules(listener_arn: listener.listener_arn).rules
 tg_green = AWSClient.elbv2.describe_target_groups.target_groups.find { |x| x.target_group_name == "#{tg_prefix}-green" }
 tg_blue = AWSClient.elbv2.describe_target_groups.target_groups.find { |x| x.target_group_name == "#{tg_prefix}-blue" }
 
-if rule.actions.first.target_group_arn.include? "blue"
-  puts "Detected blue tg, switching to green"
+if color == "green"
+  puts "Switching to green"
   tg_color = tg_green.target_group_arn
-elsif rule.actions.first.target_group_arn.include? "green"
-  puts "Detected green tg, switching to blue"
+elsif color == "blue"
+  puts "Switching to blue"
   tg_color = tg_blue.target_group_arn
 else
-  fail "Cannot detect current color"
+  fail "Cannot detect current color. Color not passed in cli?"
 end
 
 targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg_color)
