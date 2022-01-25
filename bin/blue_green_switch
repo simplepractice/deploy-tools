@@ -3,11 +3,9 @@
 require "aws-sdk-elasticloadbalancingv2"
 
 REGION = "us-west-2".freeze
-lb_name = ARGV[0]
-lb_port = 443
-domain = ARGV[1]
-tg_prefix = ARGV[2]
-color = ARGV[3]
+tg_name = ARGV[0]
+color = ARGV[1]
+color_port = ARGV[2]
 
 class AWSClient
   class << self
@@ -18,29 +16,74 @@ class AWSClient
 end
 
 
-alb = AWSClient.elbv2.describe_load_balancers.load_balancers.find { |x| x.load_balancer_name == lb_name }
-listener = AWSClient.elbv2.describe_listeners(load_balancer_arn: alb.load_balancer_arn).listeners.find { |x| x.port == lb_port }
-rule = AWSClient.elbv2.describe_rules(listener_arn: listener.listener_arn).rules.find { |x| x.conditions.first.values.include? domain }
-tg_green = AWSClient.elbv2.describe_target_groups.target_groups.find { |x| x.target_group_name == "#{tg_prefix}-green" }
-tg_blue = AWSClient.elbv2.describe_target_groups.target_groups.find { |x| x.target_group_name == "#{tg_prefix}-blue" }
-
-if color == "green"
+if color_port == nil
+  fail "Cannot detect current color_port. Color_port not passed in cli?"
+elsif color == "green"
   puts "Switching to green"
-  tg_color = tg_green.target_group_arn
 elsif color == "blue"
   puts "Switching to blue"
-  tg_color = tg_blue.target_group_arn
 else
   fail "Cannot detect current color. Color not passed in cli?"
 end
 
-targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg_color)
+tg = AWSClient.elbv2.describe_target_groups.target_groups.find { |x| x.target_group_name == "#{tg_name}" }
+targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg.target_group_arn)
             .target_health_descriptions.map(&:target)
+targets_ids = targets.map(&:id)
+targets_port = targets.map(&:port).uniq[0]
 
-AWSClient.elbv2.wait_until(
-  :target_in_service,
-  target_group_arn: tg_color,
-  targets: targets
-)
+targets_ids.each do |i|
+  AWSClient.elbv2.register_targets({
+    target_group_arn: tg.target_group_arn, 
+    targets: [
+      {
+        id: i,
+        port: color_port,
+      },
+    ],
+  })
+end
 
-AWSClient.elbv2.modify_rule(rule_arn: rule.rule_arn, actions: [{ type: "forward", target_group_arn: tg_color }])
+targets_ids.each do |i|
+  AWSClient.elbv2.wait_until(
+    :target_in_service,
+    target_group_arn: tg.target_group_arn,
+    targets: [
+      {
+        id: i,
+        port: color_port
+      },
+    ]
+  )
+end
+
+puts color.capitalize + " target in service"
+puts "De-registering an old one"
+
+targets_ids.each do |i|
+  AWSClient.elbv2.deregister_targets({
+    target_group_arn: tg.target_group_arn, 
+    targets: [
+      {
+        id: i,
+        port: targets_port
+      }, 
+    ], 
+  })
+end
+
+targets_ids.each do |i|
+  AWSClient.elbv2.wait_until(
+    :target_deregistered,
+    target_group_arn: tg.target_group_arn,
+    targets: [
+      {
+        id: i,
+        port: targets_port
+      },
+    ]
+  )
+end
+
+puts
+puts "Blue-green switch completed"
