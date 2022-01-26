@@ -1,0 +1,2 @@
+inherit_from:
+- https://raw.githubusercontent.com/simplepractice/rubocop-simplepractice/v0.83.0-1/.rubocop-shared.yml

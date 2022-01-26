@@ -1,22 +1,22 @@
 #!/usr/bin/env ruby
-require 'aws-sdk-elasticloadbalancingv2'
+require "aws-sdk-elasticloadbalancingv2"
 
 tg_name = ARGV[0]
 blue_port = ARGV[1]
 green_port = ARGV[2]
 
 client = Aws::ElasticLoadBalancingV2::Client.new
-tg = client.describe_target_groups.target_groups.find { |x| x.target_group_name == "#{tg_name}" }
+tg = client.describe_target_groups.target_groups.find { |x| x.target_group_name == tg_name }
 targets = client.describe_target_health(target_group_arn: tg.target_group_arn)
-            .target_health_descriptions.map(&:target)
+                .target_health_descriptions.map(&:target)
 target_ports = targets.map(&:port).uniq
 
 if target_ports.count > 1
-  fail 'Both ports are active'
-elsif target_ports[0] == blue_port.to_i
-  puts 'green'
-elsif target_ports[0] == green_port.to_i
-  puts 'blue'
+  fail "Both ports are active"
+elsif target_ports.first == blue_port.to_i
+  puts "green"
+elsif target_ports.first == green_port.to_i
+  puts "blue"
 else
-  fail 'Cannot detect current color'
+  fail "Cannot detect current color"
 end

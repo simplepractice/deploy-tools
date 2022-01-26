@@ -15,32 +15,29 @@ class AWSClient
   end
 end
 
-
-if color_port == nil
+if color_port.nil?
   fail "Cannot detect current color_port. Color_port not passed in cli?"
-elsif color == "green"
-  puts "Switching to green"
-elsif color == "blue"
-  puts "Switching to blue"
+elsif ["blue", "green"].include?(color)
+  puts "Switching to #{color}"
 else
   fail "Cannot detect current color. Color not passed in cli?"
 end
 
-tg = AWSClient.elbv2.describe_target_groups.target_groups.find { |x| x.target_group_name == "#{tg_name}" }
+tg = AWSClient.elbv2.describe_target_groups.target_groups.find { |x| x.target_group_name == tg_name }
 targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg.target_group_arn)
-            .target_health_descriptions.map(&:target)
+                   .target_health_descriptions.map(&:target)
 targets_ids = targets.map(&:id)
-targets_port = targets.map(&:port).uniq[0]
+targets_port = targets.map(&:port).uniq.first
 
 targets_ids.each do |i|
   AWSClient.elbv2.register_targets({
-    target_group_arn: tg.target_group_arn, 
+    target_group_arn: tg.target_group_arn,
     targets: [
       {
         id: i,
-        port: color_port,
+        port: color_port
       },
-    ],
+    ]
   })
 end
 
@@ -57,18 +54,18 @@ targets_ids.each do |i|
   )
 end
 
-puts color.capitalize + " target in service"
+puts "#{color.capitalize} target in service"
 puts "De-registering an old one"
 
 targets_ids.each do |i|
   AWSClient.elbv2.deregister_targets({
-    target_group_arn: tg.target_group_arn, 
+    target_group_arn: tg.target_group_arn,
     targets: [
       {
         id: i,
         port: targets_port
-      }, 
-    ], 
+      },
+    ]
   })
 end
 
@@ -85,5 +82,4 @@ targets_ids.each do |i|
   )
 end
 
-puts
-puts "Blue-green switch completed"
+puts "\nBlue-green switch completed"
