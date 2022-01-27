@@ -7,20 +7,20 @@ tg_name = ARGV[0]
 color = ARGV[1]
 color_port = ARGV[2]
 
+if color_port.nil?
+  fail "Cannot detect current color_port. Color_port not passed in cli?"
+elsif ["blue", "green"].include?(color)
+  puts "Switching to #{color}"
+else
+  fail "Cannot detect current color. Wrong color passed in cli?"
+end
+
 class AWSClient
   class << self
     def elbv2
       @elbv2 ||= Aws::ElasticLoadBalancingV2::Client.new(region: REGION)
     end
   end
-end
-
-if color_port.nil?
-  fail "Cannot detect current color_port. Color_port not passed in cli?"
-elsif ["blue", "green"].include?(color)
-  puts "Switching to #{color}"
-else
-  fail "Cannot detect current color. Color not passed in cli?"
 end
 
 tg = AWSClient.elbv2.describe_target_groups.target_groups.find { |x| x.target_group_name == tg_name }
