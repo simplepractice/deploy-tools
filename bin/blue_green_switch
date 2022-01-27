@@ -26,60 +26,39 @@ end
 tg = AWSClient.elbv2.describe_target_groups.target_groups.find { |x| x.target_group_name == tg_name }
 targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg.target_group_arn)
                    .target_health_descriptions.map(&:target)
-targets_ids = targets.map(&:id)
-targets_port = targets.map(&:port).uniq.first
 
-targets_ids.each do |i|
-  AWSClient.elbv2.register_targets({
-    target_group_arn: tg.target_group_arn,
-    targets: [
-      {
-        id: i,
-        port: color_port
-      },
-    ]
-  })
+new_targets = []
+targets.map(&:id).each do |i|
+  new_targets <<
+    {
+      id: i,
+      port: color_port
+    }
 end
 
-targets_ids.each do |i|
-  AWSClient.elbv2.wait_until(
-    :target_in_service,
-    target_group_arn: tg.target_group_arn,
-    targets: [
-      {
-        id: i,
-        port: color_port
-      },
-    ]
-  )
-end
+AWSClient.elbv2.register_targets({
+  target_group_arn: tg.target_group_arn,
+  targets: new_targets
+})
 
-puts "#{color.capitalize} target in service"
+AWSClient.elbv2.wait_until(
+  :target_in_service,
+  target_group_arn: tg.target_group_arn,
+  targets: new_targets
+)
+
+puts "\n#{color.capitalize} target in service"
 puts "De-registering an old one"
 
-targets_ids.each do |i|
-  AWSClient.elbv2.deregister_targets({
-    target_group_arn: tg.target_group_arn,
-    targets: [
-      {
-        id: i,
-        port: targets_port
-      },
-    ]
-  })
-end
+AWSClient.elbv2.deregister_targets({
+  target_group_arn: tg.target_group_arn,
+  targets: targets
+})
 
-targets_ids.each do |i|
-  AWSClient.elbv2.wait_until(
-    :target_deregistered,
-    target_group_arn: tg.target_group_arn,
-    targets: [
-      {
-        id: i,
-        port: targets_port
-      },
-    ]
-  )
-end
+AWSClient.elbv2.wait_until(
+  :target_deregistered,
+  target_group_arn: tg.target_group_arn,
+  targets: targets
+)
 
 puts "\nBlue-green switch completed"
