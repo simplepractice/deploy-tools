@@ -1,10 +1,10 @@
 Gem::Specification.new do |s|
   s.name        = 'deploy-tools'
-  s.version     = '0.0.5'
-  s.date        = '2021-03-17'
+  s.version     = '0.1.0'
+  s.date        = '2022-01-27'
   s.summary     = "Deploy tools"
   s.description = "A set of script used for deployment"
-  s.authors     = ["Tony Nyurkin"]
+  s.authors     = ["Tony Nyurkin", "Serhii Voronoi"]
   s.email       = 'tony@simplepractice.com'
   s.files       = `git ls-files `.split("\n")
   s.bindir      = "bin"
