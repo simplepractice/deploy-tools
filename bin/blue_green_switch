@@ -26,6 +26,7 @@ end
 tg = AWSClient.elbv2.describe_target_groups.target_groups.find { |x| x.target_group_name == tg_name }
 targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg.target_group_arn)
                    .target_health_descriptions.map(&:target)
+targets_port = targets.map(&:port).uniq.first
 
 new_targets = []
 targets.map(&:id).each do |i|
@@ -48,17 +49,22 @@ AWSClient.elbv2.wait_until(
 )
 
 puts "\n#{color.capitalize} target in service"
-puts "De-registering an old one"
 
-AWSClient.elbv2.deregister_targets({
-  target_group_arn: tg.target_group_arn,
-  targets: targets
-})
+if targets_port == color_port.to_i
+  warn "WARNING: Currently active and new colors are the same. No changes performed!"
+else
+  puts "De-registering an old one"
 
-AWSClient.elbv2.wait_until(
-  :target_deregistered,
-  target_group_arn: tg.target_group_arn,
-  targets: targets
-)
+  AWSClient.elbv2.deregister_targets({
+    target_group_arn: tg.target_group_arn,
+    targets: targets
+  })
+
+  AWSClient.elbv2.wait_until(
+    :target_deregistered,
+    target_group_arn: tg.target_group_arn,
+    targets: targets
+  )
+end
 
 puts "\nBlue-green switch completed"
