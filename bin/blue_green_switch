@@ -6,6 +6,7 @@ REGION = "us-west-2".freeze
 tg_name = ARGV[0]
 color = ARGV[1]
 color_port = ARGV[2]
+targets_list = ARGV[3]
 
 if color_port.nil?
   fail "Cannot detect current color_port. Color_port not passed in cli?"
@@ -29,12 +30,22 @@ targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg.target_gro
 targets_port = targets.map(&:port).uniq.first
 
 new_targets = []
-targets.map(&:id).each do |i|
-  new_targets <<
-    {
-      id: i,
-      port: color_port
-    }
+if targets_list.nil?
+  targets.map(&:id).each do |i|
+    new_targets <<
+      {
+        id: i,
+        port: color_port
+      }
+  end
+else
+  targets_list.split(",").each do |i|
+    new_targets <<
+      {
+        id: i,
+        port: color_port
+      }
+  end
 end
 
 AWSClient.elbv2.register_targets({
