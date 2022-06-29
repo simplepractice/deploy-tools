@@ -29,23 +29,20 @@ targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg.target_gro
                    .target_health_descriptions.map(&:target)
 targets_port = targets.map(&:port).uniq.first
 
-new_targets = []
 if targets_list.nil?
-  targets.map(&:id).each do |i|
-    new_targets <<
-      {
-        id: i,
-        port: color_port
-      }
-  end
+  targets_ids = targets.map(&:id)
 else
-  targets_list.split(",").each do |i|
-    new_targets <<
-      {
-        id: i,
-        port: color_port
-      }
-  end
+  targets_ids = targets_list.split(",")
+end
+
+new_targets = []
+
+targets_ids.each do |i|
+  new_targets <<
+    {
+      id: i,
+      port: color_port
+    }
 end
 
 AWSClient.elbv2.register_targets({
