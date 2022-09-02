@@ -5,9 +5,7 @@ require "aws-sdk-elasticloadbalancingv2"
 host_id = ARGV[0]
 tg_skip = ARGV[1]
 
-if host_id.nil?
-  fail "Please specify HOST_ID"
-end
+fail "Please specify HOST_ID" if host_id.nil?
 
 REGION = "us-west-2".freeze
 class AWSClient
@@ -24,7 +22,7 @@ if !tg_skip.nil?
   tgs.reject! { |tg| tg_skip.include? tg.target_group_name }
 end
 
-for tg in tgs do
+tgs.each do |tg|
   targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg.target_group_arn)
                   .target_health_descriptions.map(&:target)
   target_ports = targets.map(&:port).uniq
@@ -40,7 +38,7 @@ for tg in tgs do
   })
 end
 
-for tg in tgs do
+tgs.each do |tg|
   targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg.target_group_arn)
                   .target_health_descriptions.map(&:target)
   target_ports = targets.map(&:port).uniq
@@ -55,7 +53,7 @@ for tg in tgs do
       }
     ]
   )
-  puts "#{tg.target_group_name}:#{target_ports[0]} registered\n"
+  puts "#{tg.target_group_name}:#{target_ports[0]} registered"
 end
 
-puts "\nTarget host registered back to all target groups\n"
+puts "\nTarget host registered back to all target groups"
