@@ -18,7 +18,7 @@ end
 
 tgs = AWSClient.elbv2.describe_target_groups.target_groups
 
-if !tg_skip.nil?
+if tg_skip
   tgs.reject! { |tg| tg_skip.include? tg.target_group_name }
 end
 
