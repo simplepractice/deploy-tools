@@ -1,0 +1,106 @@
+#!/usr/bin/env ruby
+
+require "aws-sdk-elasticloadbalancingv2"
+
+TARGETS_FILE_PATH = '/tmp/deploy_tools_single_tgs'
+
+function = ARGV[0]
+host_id = ARGV[1]
+
+fail "Please specify AWS_PROFILE" if ENV["AWS_PROFILE"].nil?
+fail "Usage: single_target <deregister || register> <host_id>" if (function.nil? or host_id.nil?)
+
+REGION = "us-west-2".freeze
+class AWSClient
+  class << self
+    def elbv2
+      @elbv2 ||= Aws::ElasticLoadBalancingV2::Client.new(region: REGION)
+    end
+  end
+end
+
+def find_host_tgs (host_id)
+  all_tgs = AWSClient.elbv2.describe_target_groups.target_groups
+  host_tgs = []
+
+  all_tgs.each do |tg|
+    targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg.target_group_arn)
+                    .target_health_descriptions.map(&:target)
+    target_ports = targets.map(&:port).uniq
+
+    if targets.map(&:id).include?(host_id)
+      host_tgs.push ({
+        :target_group_arn => tg.target_group_arn,
+        :target_group_name => tg.target_group_name,
+        :target_current_port => target_ports[0]
+      })
+    end
+  end
+
+  fail "Target not found in any target group!" if host_tgs.length == 0
+  File.write(TARGETS_FILE_PATH, host_tgs.join("\n"))
+
+  return host_tgs
+end
+
+def target_wait (target_groups, state)
+  target_groups.each do |tg|
+    AWSClient.elbv2.wait_until(
+      :state,
+      target_group_arn: tg[:target_group_arn],
+      targets: [
+        {
+          id: host_id,
+          port: tg[:target_current_port]
+        }
+      ]
+    )
+    puts "#{tg[:target_group_name]}:#{tg[:target_current_port]} #{state}"
+  end
+end
+
+def deregister (host_id)
+  target_groups = find_host_tgs (host_id)
+  target_groups.each do |tg|
+    AWSClient.elbv2.deregister_targets({
+      target_group_arn: tg[:target_group_arn],
+      targets: [
+        {
+          id: host_id,
+          port: tg[:target_current_port]
+        }
+      ]
+    })
+  end
+  target_wait target_groups, "target_deregistered"
+  puts "\nTarget host de-registered from all target groups"
+end
+
+def register (host_id)
+  file = File.open(TARGETS_FILE_PATH)
+  target_groups = file.readlines.map(&:chomp)
+  file.close
+  target_groups.each do |tg|
+    AWSClient.elbv2.register_targets({
+      target_group_arn: tg[:target_group_arn],
+      targets: [
+        {
+          id: host_id,
+          port: tg[:target_current_port]
+        }
+      ]
+    })
+  end
+  target_wait target_groups, "target_in_service"
+  puts "\nTarget host registered back to all target groups"
+end
+
+
+
+if function == "deregister"
+  deregister(host_id)
+elsif function == "register"
+  register(host_id)
+else
+  fail "Wrong function name! Correct functions are register or deregister"
+end
