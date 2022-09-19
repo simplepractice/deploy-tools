@@ -5,10 +5,10 @@ require "aws-sdk-elasticloadbalancingv2"
 TARGETS_FILE_PATH = '/tmp/deploy_tools_single_tgs'
 
 function = ARGV[0]
-host_id = ARGV[1]
+$host_id = ARGV[1]
 
 fail "Please specify AWS_PROFILE" if ENV["AWS_PROFILE"].nil?
-fail "Usage: single_target <deregister || register> <host_id>" if (function.nil? or host_id.nil?)
+fail "Usage: single_target <deregister || register> <host_id>" if (function.nil? or $host_id.nil?)
 
 REGION = "us-west-2".freeze
 class AWSClient
@@ -19,7 +19,7 @@ class AWSClient
   end
 end
 
-def find_host_tgs (host_id)
+def find_host_tgs ()
   all_tgs = AWSClient.elbv2.describe_target_groups.target_groups
   host_tgs = []
 
@@ -28,7 +28,7 @@ def find_host_tgs (host_id)
                     .target_health_descriptions.map(&:target)
     target_ports = targets.map(&:port).uniq
 
-    if targets.map(&:id).include?(host_id)
+    if targets.map(&:id).include?($host_id)
       host_tgs.push ({
         :target_group_arn => tg.target_group_arn,
         :target_group_name => tg.target_group_name,
@@ -50,7 +50,7 @@ def target_wait (target_groups, state)
       target_group_arn: tg[:target_group_arn],
       targets: [
         {
-          id: host_id,
+          id: $host_id,
           port: tg[:target_current_port]
         }
       ]
@@ -59,14 +59,14 @@ def target_wait (target_groups, state)
   end
 end
 
-def deregister (host_id)
-  target_groups = find_host_tgs (host_id)
+def deregister ()
+  target_groups = find_host_tgs
   target_groups.each do |tg|
     AWSClient.elbv2.deregister_targets({
       target_group_arn: tg[:target_group_arn],
       targets: [
         {
-          id: host_id,
+          id: $host_id,
           port: tg[:target_current_port]
         }
       ]
@@ -76,7 +76,7 @@ def deregister (host_id)
   puts "\nTarget host de-registered from all target groups"
 end
 
-def register (host_id)
+def register ()
   file = File.open(TARGETS_FILE_PATH)
   target_groups = file.readlines.map(&:chomp)
   file.close
@@ -85,7 +85,7 @@ def register (host_id)
       target_group_arn: tg[:target_group_arn],
       targets: [
         {
-          id: host_id,
+          id: $host_id,
           port: tg[:target_current_port]
         }
       ]
@@ -98,9 +98,9 @@ end
 
 
 if function == "deregister"
-  deregister(host_id)
+  deregister
 elsif function == "register"
-  register(host_id)
+  register
 else
   fail "Wrong function name! Correct functions are register or deregister"
 end
