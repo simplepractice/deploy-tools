@@ -43,26 +43,19 @@ def find_host_tgs ()
   return host_tgs
 end
 
-def target_wait (target_groups, state)
-  target_groups.each do |target_group|
-    if target_group.class == String
-      tg = eval(target_group)
-    else
-      tg = target_group
-    end
+def target_wait (tg, state)
+  AWSClient.elbv2.wait_until(
+    state,
+    target_group_arn: tg[:target_group_arn],
+    targets: [
+      {
+        id: $host_id,
+        port: tg[:target_current_port]
+      }
+    ]
+  )
 
-    AWSClient.elbv2.wait_until(
-      state,
-      target_group_arn: tg[:target_group_arn],
-      targets: [
-        {
-          id: $host_id,
-          port: tg[:target_current_port]
-        }
-      ]
-    )
-    puts "#{tg[:target_group_name]}:#{tg[:target_current_port]} #{state}"
-  end
+  puts "#{tg[:target_group_name]}:#{tg[:target_current_port]} #{state}"
 end
 
 def deregister (target_groups)
@@ -77,7 +70,11 @@ def deregister (target_groups)
       ]
     })
   end
-  target_wait target_groups, :target_deregistered
+
+  target_groups.each do |tg|
+    target_wait tg, :target_deregistered
+  end
+
   puts "\nTarget host de-registered from all target groups"
 end
 
@@ -94,7 +91,11 @@ def register (target_groups)
       ]
     })
   end
-  target_wait target_groups, :target_in_service
+
+  target_groups.each do |tg|
+    target_wait eval(tg), :target_in_service
+  end
+
   puts "\nTarget host registered back to all target groups"
 end
 
