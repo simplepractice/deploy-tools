@@ -44,9 +44,15 @@ def find_host_tgs ()
 end
 
 def target_wait (target_groups, state)
-  target_groups.each do |tg|
+  target_groups.each do |target_group|
+    if target_group.class == String
+      tg = eval(target_group)
+    else
+      tg = target_group
+    end
+
     AWSClient.elbv2.wait_until(
-      :state,
+      state,
       target_group_arn: tg[:target_group_arn],
       targets: [
         {
@@ -59,8 +65,7 @@ def target_wait (target_groups, state)
   end
 end
 
-def deregister ()
-  target_groups = find_host_tgs
+def deregister (target_groups)
   target_groups.each do |tg|
     AWSClient.elbv2.deregister_targets({
       target_group_arn: tg[:target_group_arn],
@@ -72,15 +77,13 @@ def deregister ()
       ]
     })
   end
-  target_wait target_groups, "target_deregistered"
+  target_wait target_groups, :target_deregistered
   puts "\nTarget host de-registered from all target groups"
 end
 
-def register ()
-  file = File.open(TARGETS_FILE_PATH)
-  target_groups = file.readlines.map(&:chomp)
-  file.close
-  target_groups.each do |tg|
+def register (target_groups)
+  target_groups.each do |target_group|
+    tg = eval(target_group)
     AWSClient.elbv2.register_targets({
       target_group_arn: tg[:target_group_arn],
       targets: [
@@ -91,16 +94,16 @@ def register ()
       ]
     })
   end
-  target_wait target_groups, "target_in_service"
+  target_wait target_groups, :target_in_service
   puts "\nTarget host registered back to all target groups"
 end
 
 
 
 if function == "deregister"
-  deregister
+  deregister(find_host_tgs)
 elsif function == "register"
-  register
+  register(File.read(TARGETS_FILE_PATH).split("\n"))
 else
   fail "Wrong function name! Correct functions are register or deregister"
 end

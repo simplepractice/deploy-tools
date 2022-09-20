@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name        = 'deploy-tools'
   s.version     = '0.1.4'
-  s.date        = '2022-09-19'
+  s.date        = '2022-09-20'
   s.summary     = "Deploy tools"
   s.description = "A set of script used for deployment"
   s.authors     = ["Tony Nyurkin", "Serhii Voronoi"]
