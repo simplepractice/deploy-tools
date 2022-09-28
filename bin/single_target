@@ -4,10 +4,10 @@ require "aws-sdk-elasticloadbalancingv2"
 
 TARGETS_FILE_PATH = '/tmp/deploy_tools_single_tgs'
 
-function = ARGV[0]
-$host_id = ARGV[1]
+FUNCTION = ARGV[0]
+HOST_ID = ARGV[1]
 
-fail "Usage: single_target <deregister || register> <host_id>" if (function.nil? or $host_id.nil?)
+fail "Usage: single_target <deregister || register> <host_id>" if (FUNCTION.nil? or HOST_ID.nil?)
 
 REGION = "us-west-2".freeze
 class AWSClient
@@ -27,7 +27,7 @@ def find_host_tgs ()
                     .target_health_descriptions.map(&:target)
     target_ports = targets.map(&:port).uniq
 
-    if targets.map(&:id).include?($host_id)
+    if targets.map(&:id).include?(HOST_ID)
       host_tgs.push ({
         :target_group_arn => tg.target_group_arn,
         :target_group_name => tg.target_group_name,
@@ -48,7 +48,7 @@ def target_wait (tg, state)
     target_group_arn: tg[:target_group_arn],
     targets: [
       {
-        id: $host_id,
+        id: HOST_ID,
         port: tg[:target_current_port]
       }
     ]
@@ -63,7 +63,7 @@ def deregister (target_groups)
       target_group_arn: tg[:target_group_arn],
       targets: [
         {
-          id: $host_id,
+          id: HOST_ID,
           port: tg[:target_current_port]
         }
       ]
@@ -84,7 +84,7 @@ def register (target_groups)
       target_group_arn: tg[:target_group_arn],
       targets: [
         {
-          id: $host_id,
+          id: HOST_ID,
           port: tg[:target_current_port]
         }
       ]
@@ -100,9 +100,9 @@ end
 
 
 
-if function == "deregister"
+if FUNCTION == "deregister"
   deregister(find_host_tgs)
-elsif function == "register"
+elsif FUNCTION == "register"
   register(File.read(TARGETS_FILE_PATH).split("\n"))
 else
   fail "Wrong function name! Correct functions are register or deregister"
