@@ -1,8 +1,7 @@
 #!/usr/bin/env ruby
 
 require "aws-sdk-elasticloadbalancingv2"
-
-TARGETS_FILE_PATH = '/tmp/deploy_tools_single_tgs'
+require "yaml"
 
 FUNCTION = ARGV[0]
 HOST_ID = ARGV[1]
@@ -37,7 +36,6 @@ def find_host_tgs ()
   end
 
   fail "Target not found in any target group!" if host_tgs.length == 0
-  File.write(TARGETS_FILE_PATH, host_tgs.join("\n"))
 
   return host_tgs
 end
@@ -75,11 +73,12 @@ def deregister (target_groups)
   end
 
   puts "\nTarget host de-registered from all target groups"
+  puts "To register it back to the same target groups run this command:"
+  puts print_register_string(target_groups)
 end
 
 def register (target_groups)
-  target_groups.each do |target_group|
-    tg = eval(target_group)
+  target_groups.each do |tg|
     AWSClient.elbv2.register_targets({
       target_group_arn: tg[:target_group_arn],
       targets: [
@@ -92,24 +91,33 @@ def register (target_groups)
   end
 
   target_groups.each do |tg|
-    target_wait eval(tg), :target_in_service
+    target_wait tg, :target_in_service
   end
 
   puts "\nTarget host registered back to all target groups"
 end
 
-
+def print_register_string(target_group)
+  return "\nsingle_target register #{HOST_ID} \"#{YAML.dump(target_group)}\""
+end
 
 if FUNCTION == "get_tgs"
   tgs_found = find_host_tgs
+
   puts "Specified host found to be registered in the following target groups:"
   tgs_found.each do |tg|
     puts "#{tg[:target_group_name]}: #{tg[:target_current_port]}"
   end
+
+  puts "\nTo register a host to these target groups run this command:"
+  puts print_register_string(tgs_found)
 elsif FUNCTION == "deregister"
   deregister(find_host_tgs)
 elsif FUNCTION == "register"
-  register(File.read(TARGETS_FILE_PATH).split("\n"))
+  TGS_LIST = ARGV[2]
+  fail "register function requires list of target groups; run 'single_target get_tgs <HOST_ID>' to get the list." if TGS_LIST.nil?
+
+  register(YAML.load(TGS_LIST))
 else
   fail "Wrong function name! Correct functions are: get_tgs, register, deregister"
 end
