@@ -29,9 +29,9 @@ def find_host_tgs ()
 
     if targets.map(&:id).include?(HOST_ID)
       host_tgs.push ({
-        :target_group_arn => tg.target_group_arn,
-        :target_group_name => tg.target_group_name,
-        :target_current_port => target_ports[0]
+        target_group_arn: tg.target_group_arn,
+        target_group_name: tg.target_group_name,
+        target_current_port: target_ports[0]
       })
     end
   end
