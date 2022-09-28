@@ -7,7 +7,6 @@ TARGETS_FILE_PATH = '/tmp/deploy_tools_single_tgs'
 function = ARGV[0]
 $host_id = ARGV[1]
 
-fail "Please specify AWS_PROFILE" if ENV["AWS_PROFILE"].nil?
 fail "Usage: single_target <deregister || register> <host_id>" if (function.nil? or $host_id.nil?)
 
 REGION = "us-west-2".freeze
