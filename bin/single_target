@@ -7,7 +7,7 @@ TARGETS_FILE_PATH = '/tmp/deploy_tools_single_tgs'
 FUNCTION = ARGV[0]
 HOST_ID = ARGV[1]
 
-fail "Usage: single_target <deregister || register> <host_id>" if (FUNCTION.nil? or HOST_ID.nil?)
+fail "Usage: single_target <get_tgs || deregister || register> <host_id>" if (FUNCTION.nil? or HOST_ID.nil?)
 
 REGION = "us-west-2".freeze
 class AWSClient
@@ -100,10 +100,16 @@ end
 
 
 
-if FUNCTION == "deregister"
+if FUNCTION == "get_tgs"
+  tgs_found = find_host_tgs
+  puts "Specified host found to be registered in the following target groups:"
+  tgs_found.each do |tg|
+    puts "#{tg[:target_group_name]}: #{tg[:target_current_port]}"
+  end
+elsif FUNCTION == "deregister"
   deregister(find_host_tgs)
 elsif FUNCTION == "register"
   register(File.read(TARGETS_FILE_PATH).split("\n"))
 else
-  fail "Wrong function name! Correct functions are register or deregister"
+  fail "Wrong function name! Correct functions are: get_tgs, register, deregister"
 end
