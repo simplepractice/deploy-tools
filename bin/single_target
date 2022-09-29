@@ -3,10 +3,6 @@
 require "aws-sdk-elasticloadbalancingv2"
 require "yaml"
 
-FUNCTION = ARGV[0]
-HOST_ID = ARGV[1]
-
-fail "Usage: single_target <get_tgs || deregister || register> <host_id>" if (FUNCTION.nil? or HOST_ID.nil?)
 
 REGION = "us-west-2".freeze
 class AWSClient
@@ -17,105 +13,118 @@ class AWSClient
   end
 end
 
-def find_host_tgs ()
-  all_tgs = AWSClient.elbv2.describe_target_groups.target_groups
-  host_tgs = Hash.new
+class SingleTarget
+  def initialize(function: nil, host_id: nil, tgs_list: nil)
+    @function = function
+    @host_id = host_id
+    @tgs_list = tgs_list
+  end
 
-  all_tgs.each do |tg|
-    targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg.target_group_arn)
-                    .target_health_descriptions.map(&:target)
-    target_ports = targets.map(&:port).uniq
+  def call
+    case @function
+    when "get_tgs"
+      tgs_found = find_host_tgs
 
-    if targets.map(&:id).include?(HOST_ID)
-      host_tgs["#{tg.target_group_name}"] = {
-        arn: tg.target_group_arn,
-        port: target_ports[0]
-      }
+      puts "Specified host found to be registered in the following target groups:"
+      tgs_found.each do |tg, values|
+        puts "#{tg}: #{values[:port]}"
+      end
+
+      puts "\nTo register a host to these target groups run this command:"
+      puts print_register_string(tgs_found)
+    when "deregister"
+      deregister(find_host_tgs)
+    when "register"
+      fail "register function requires list of target groups; run 'single_target get_tgs <host_id>' to get the list." if @tgs_list.nil?
+      register(YAML.load(@tgs_list))
+    else
+      puts "Usage: single_target <get_tgs || deregister || register> <host_id>"
     end
   end
 
-  fail "Target not found in any target group!" if host_tgs.length == 0
+  private
+  def find_host_tgs ()
+    all_tgs = AWSClient.elbv2.describe_target_groups.target_groups
+    host_tgs = Hash.new
 
-  return host_tgs
-end
+    all_tgs.each do |tg|
+      targets = AWSClient.elbv2.describe_target_health(target_group_arn: tg.target_group_arn)
+                      .target_health_descriptions.map(&:target)
+      target_ports = targets.map(&:port).uniq
 
-def target_wait (target_groups, state)
-  target_groups.each do |tg, values|
-    AWSClient.elbv2.wait_until(
-      state,
-      target_group_arn: values[:arn],
-      targets: [
-        {
-          id: HOST_ID,
-          port: values[:port]
+      if targets.map(&:id).include?(@host_id)
+        host_tgs["#{tg.target_group_name}"] = {
+          arn: tg.target_group_arn,
+          port: target_ports[0]
         }
-      ]
-    )
+      end
+    end
 
-    puts "#{tg}:#{values[:port]} #{state}"
+    fail "Target not found in any target group!" if host_tgs.length == 0
+
+    return host_tgs
+  end
+
+  def target_wait (target_groups, state)
+    target_groups.each do |tg, values|
+      AWSClient.elbv2.wait_until(
+        state,
+        target_group_arn: values[:arn],
+        targets: [
+          {
+            id: @host_id,
+            port: values[:port]
+          }
+        ]
+      )
+
+      puts "#{tg}:#{values[:port]} #{state}"
+    end
+  end
+
+  def deregister (target_groups)
+    target_groups.each do |tg, values|
+      AWSClient.elbv2.deregister_targets({
+        target_group_arn: values[:arn],
+        targets: [
+          {
+            id: @host_id,
+            port: values[:port]
+          }
+        ]
+      })
+    end
+
+    target_wait target_groups, :target_deregistered
+
+    puts "\nTarget host de-registered from all target groups"
+    puts "To register it back to the same target groups run this command:"
+    puts print_register_string(target_groups)
+  end
+
+  def register (target_groups)
+    target_groups.each do |tg, values|
+      AWSClient.elbv2.register_targets({
+        target_group_arn: values[:arn],
+        targets: [
+          {
+            id: @host_id,
+            port: values[:port]
+          }
+        ]
+      })
+    end
+
+    target_wait target_groups, :target_in_service
+
+    puts "\nTarget host registered back to all target groups"
+  end
+
+  def print_register_string(target_groups)
+    return "\nsingle_target register #{@host_id} \"#{YAML.dump(target_groups)}\""
   end
 end
 
-def deregister (target_groups)
-  target_groups.each do |tg, values|
-    AWSClient.elbv2.deregister_targets({
-      target_group_arn: values[:arn],
-      targets: [
-        {
-          id: HOST_ID,
-          port: values[:port]
-        }
-      ]
-    })
-  end
 
-  target_wait target_groups, :target_deregistered
-
-  puts "\nTarget host de-registered from all target groups"
-  puts "To register it back to the same target groups run this command:"
-  puts print_register_string(target_groups)
-end
-
-def register (target_groups)
-  target_groups.each do |tg, values|
-    AWSClient.elbv2.register_targets({
-      target_group_arn: values[:arn],
-      targets: [
-        {
-          id: HOST_ID,
-          port: values[:port]
-        }
-      ]
-    })
-  end
-
-  target_wait target_groups, :target_in_service
-
-  puts "\nTarget host registered back to all target groups"
-end
-
-def print_register_string(target_groups)
-  return "\nsingle_target register #{HOST_ID} \"#{YAML.dump(target_groups)}\""
-end
-
-
-if FUNCTION == "get_tgs"
-  tgs_found = find_host_tgs
-
-  puts "Specified host found to be registered in the following target groups:"
-  tgs_found.each do |tg, values|
-    puts "#{tg}: #{values[:port]}"
-  end
-
-  puts "\nTo register a host to these target groups run this command:"
-  puts print_register_string(tgs_found)
-elsif FUNCTION == "deregister"
-  deregister(find_host_tgs)
-elsif FUNCTION == "register"
-  TGS_LIST = ARGV[2]
-  fail "register function requires list of target groups; run 'single_target get_tgs <HOST_ID>' to get the list." if TGS_LIST.nil?
-
-  register(YAML.load(TGS_LIST))
-else
-  fail "Wrong function name! Correct functions are: get_tgs, register, deregister"
-end
+service = SingleTarget.new(function: ARGV[0], host_id: ARGV[1], tgs_list: ARGV[2])
+service.call
