@@ -50,11 +50,16 @@ AWSClient.elbv2.register_targets({
   targets: new_targets
 })
 
-AWSClient.elbv2.wait_until(
-  :target_in_service,
-  target_group_arn: tg.target_group_arn,
-  targets: new_targets
-)
+begin
+  AWSClient.elbv2.wait_until(
+    :target_in_service,
+    target_group_arn: tg.target_group_arn,
+    targets: new_targets
+  )
+rescue
+  puts "Something went wrong"
+end
+
 
 puts "\n#{color.capitalize} target in service"
 
