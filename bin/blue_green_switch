@@ -50,11 +50,23 @@ AWSClient.elbv2.register_targets({
   targets: new_targets
 })
 
-AWSClient.elbv2.wait_until(
-  :target_in_service,
-  target_group_arn: tg.target_group_arn,
-  targets: new_targets
-)
+begin
+  AWSClient.elbv2.wait_until(
+    :target_in_service,
+    target_group_arn: tg.target_group_arn,
+    targets: new_targets,
+  )
+rescue
+  puts "The new containers are failing the elb health check"
+
+  AWSClient.elbv2.deregister_targets({
+    target_group_arn: tg.target_group_arn,
+    targets: new_targets
+  })
+
+  raise "The new containers are failing the elb health check"
+end
+
 
 puts "\n#{color.capitalize} target in service"
 
