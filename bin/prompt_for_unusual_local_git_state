@@ -1,10 +1,7 @@
 #!/usr/bin/env ruby
-# Hacky wrapper file to call the shell script. By default, installed gems run scripts as if they are Ruby,
+# Hacky wrapper file to call the corresponding shell script. By default, installed gems run scripts as if they are Ruby,
 # and do not respect the shebang line (e.g. a bash shebang). This file is a workaround to call the shell script directly.
 # Hack source: https://stackoverflow.com/a/27988355/2291928
 
-bin_dir = File.expand_path(File.dirname(__FILE__))
-shell_script_path = File.join(bin_dir, 'prompt_for_unusual_local_git_state.sh')
-
-system("#{shell_script_path} #{ARGV.join(' ')}")
+system("#{__FILE__}.sh #{ARGV.join(' ')}")
 exit $?.exitstatus
