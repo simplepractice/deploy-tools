@@ -11,7 +11,7 @@
 # There are valid situations (rollback, hotfix, temporary config changes) which trigger warnings. That's OK/expected.
 # In such situations, the user should review carefully and confirm the deployment at their discretion.
 #
-# Usage: ./prompt_if_target_revision_is_not_release_branch_head.sh <GIT_REMOTE> <GIT_RELEASE_BRANCH> <REVISION>
+# Usage: prompt_for_unusual_local_git_state <GIT_REMOTE> <GIT_RELEASE_BRANCH> <REVISION>
 # - git_remote: The remote to fetch the release branch from e.g. "origin".
 # - git_release_branch: The release branch to compare the target REVISION against e.g. "main".
 # - revision: The specific commit hash being deployed e.g. "41af8fa0fc80b7f590a0f46eccd4956b4a45c932".
@@ -26,7 +26,7 @@ git_release_branch="$2"
 revision="$3"
 
 if [ -z "${git_remote}" ] || [ -z "${git_release_branch}" ] || [ -z "${revision}" ]; then
-  echo "ERROR: Missing required arguments. Usage: ./prompt_if_target_revision_is_not_release_branch_head.sh <GIT_REMOTE> <GIT_RELEASE_BRANCH> <REVISION>"
+  echo "ERROR: Missing required arguments. Usage: prompt_for_unusual_local_git_state <GIT_REMOTE> <GIT_RELEASE_BRANCH> <REVISION>"
   exit 1
 fi
 
