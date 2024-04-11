@@ -6,6 +6,7 @@ Gem::Specification.new do |s|
   s.description = "A set of script used for deployment"
   s.authors     = ["Tony Nyurkin", "Serhii Voronoi", "George Pantazes"]
   s.email       = "infra@simplepractice.com"
+  s.homepage    = "https://github.com/simplepractice/deploy-tools"
   s.files       = `git ls-files `.split("\n")
   s.bindir      = "bin"
   s.executables = [
