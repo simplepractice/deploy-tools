@@ -2,7 +2,7 @@
 
 ## Development
 
-Install development dependencies.
+Install dependencies.
 
 ```shell
 bundle install
