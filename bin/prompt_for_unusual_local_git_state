@@ -10,7 +10,7 @@
 # Releases typically deploy the HEAD of the release branch. This script checks for the following conditions:
 # 1. The currently checked out branch is the release branch.
 # 2. The target REVISION to deploy is the HEAD of the remote release branch (up-to-date).
-#
+# 
 # There are valid situations (rollback, hotfix) which will trigger this prompt. That's OK/expected.
 # In such situations, the user should review carefullly and confirm the deployment at their discretion.
 #
@@ -39,16 +39,27 @@ git fetch "${git_remote}" "${git_release_branch}" || { echo "ERROR: git fetch fa
 
 show_warning_prompt='false'
 
+echo "Checking if there are any uncommiteted git state is clean..."
+if [ -z "$(git status --porcelain)" ]; then
+  echo "(check passed) Git state is clean. There are no uncommitted changes."
+else
+  show_warning_prompt='true'
+  echo "WARNING: Uncommitted changes detected!"
+  echo "⬇ Review the git status. ⬇"
+  git status
+  echo
+fi
+
 echo "Checking if the currently checked out branch is the release branch ${git_release_branch}..."
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 if [ "${current_branch}" = "${git_release_branch}" ]; then
   echo "(check passed) On ${current_branch} branch."
 else
-    show_warning_prompt='true'
-    echo "WARNING: Not on ${git_release_branch} branch! Currently on ${current_branch} branch."
-    echo "⬇ Review the git log for the currently checked out commit. ⬇"
-    git --no-pager log -1
-    echo
+  show_warning_prompt='true'
+  echo "WARNING: Not on ${git_release_branch} branch! Currently on ${current_branch} branch."
+  echo "⬇ Review the git log for the currently checked out commit. ⬇"
+  git --no-pager log -1
+  echo
 fi
 
 echo "Checking if REVISION=${revision} is the HEAD of the up-to-date remote release branch ${git_remote}/${git_release_branch}..."
