@@ -7,11 +7,9 @@
 # This script is intended to be used as a pre-deploy hook in a deployment script for manual/local deployments.
 # It is not intended for automated deployments. Set CI=true to skip.
 #
-# Releases typically deploy the HEAD of the release branch. This script checks for the following conditions:
-# 1. The currently checked out branch is the release branch.
-# 2. The target REVISION to deploy is the HEAD of the remote release branch (up-to-date).
-# 
-# There are valid situations (rollback, hotfix) which will trigger this prompt. That's OK/expected.
+# Releases typically deploy the HEAD of the release branch. The conditions in this script favor those
+# typical conditions, and any deviations will show a warning prompt to the user.
+# There are valid situations (rollback, hotfix) which will trigger these warnings, and that's OK/expected.
 # In such situations, the user should review carefullly and confirm the deployment at their discretion.
 #
 # Usage: ./prompt_if_target_revision_is_not_release_branch_head.sh <GIT_REMOTE> <GIT_RELEASE_BRANCH> <REVISION>
