@@ -1,89 +1,9 @@
-#!/usr/bin/env bash
-# Checks local git state for unusual conditions and prompts the user to confirm before deploying.
-#
-# This is a safety measure to prevent accidental deployments of unintended target commits.
-# The purpose is to draw attention to unusual conditions to be reviewed carefully.
-#
-# This script is intended to be used as a pre-deploy hook in a deployment script for manual/local deployments.
-# It is not intended for automated deployments. Set CI=true to skip.
-#
-# Releases typically deploy the HEAD of the release branch. The conditions in this script favor that typical case.
-# There are valid situations (rollback, hotfix, temporary config changes) which trigger warnings. That's OK/expected.
-# In such situations, the user should review carefully and confirm the deployment at their discretion.
-#
-# Usage: $0 <GIT_REMOTE> <GIT_RELEASE_BRANCH> <REVISION>
-# - git_remote: The remote to fetch the release branch from e.g. "origin".
-# - git_release_branch: The release branch to compare the target REVISION against e.g. "main".
-# - revision: The specific commit hash being deployed e.g. "41af8fa0fc80b7f590a0f46eccd4956b4a45c932".
+#!/usr/bin/env ruby
+# Hacky wrapper file to call the shell script. By default, installed gems run scripts as if they are Ruby,
+# and do not respect the shebang line (e.g. a bash shebang). This file is a workaround to call the shell script directly.
 
-if [ "${CI}" = "true" ]; then
-  echo "CI environment detected. Skipping check for unusual local git state."
-  exit 0
-fi
+bin_dir = File.expand_path(File.dirname(__FILE__))
+shell_script_path = File.join(bin_dir, 'prompt_for_unusual_local_git_state.sh')
 
-git_remote="$1"
-git_release_branch="$2"
-revision="$3"
-
-if [ -z "${git_remote}" ] || [ -z "${git_release_branch}" ] || [ -z "${revision}" ]; then
-  echo "ERROR: Missing required arguments. Usage: $0 <GIT_REMOTE> <GIT_RELEASE_BRANCH> <REVISION>"
-  exit 1
-fi
-
-set -euo pipefail
-
-git fetch "${git_remote}" "${git_release_branch}" || { echo "ERROR: git fetch failed."; exit 1; }
-
-show_warning_prompt='false'
-
-echo "Checking if there are any uncommitted changes..."
-if [ -z "$(git status --porcelain)" ]; then
-  echo "(check passed) Git state is clean. There are no uncommitted changes."
-else
-  show_warning_prompt='true'
-  echo "WARNING: Uncommitted changes detected!"
-  echo "⬇ Review the git status. ⬇"
-  git status
-  echo
-fi
-
-echo "Checking if the currently checked out branch is the release branch ${git_release_branch}..."
-current_branch=$(git rev-parse --abbrev-ref HEAD)
-if [ "${current_branch}" = "${git_release_branch}" ]; then
-  echo "(check passed) On ${current_branch} branch."
-else
-  show_warning_prompt='true'
-  echo "WARNING: Not on ${git_release_branch} branch! Currently on ${current_branch} branch."
-  echo "⬇ Review the git log for the currently checked out commit. ⬇"
-  git --no-pager log -1
-  echo
-fi
-
-echo "Checking if REVISION=${revision} is the HEAD of the up-to-date remote release branch ${git_remote}/${git_release_branch}..."
-remote_release_branch_head="$(git rev-parse "${git_remote}/${git_release_branch}")"
-if [ "${revision}" = "${remote_release_branch_head}" ]; then
-  echo "(check passed) REVISION=${revision} is the HEAD of the up-to-date remote release branch ${git_remote}/${git_release_branch}."
-else
-  show_warning_prompt='true'
-
-  remote_release_branch_relative_time="$(git --no-pager log -1 --pretty=format:'%cr' "${remote_release_branch_head}")"
-  revision_relative_time="$(git --no-pager log -1 --pretty=format:'%cr' "${revision}")"
-
-  echo "WARNING: REVISION is not the HEAD of the remote release branch ${git_remote}/${git_release_branch}!"
-  echo "- ${remote_release_branch_head} ${git_remote}/${git_release_branch} (${remote_release_branch_relative_time})"
-  echo "- ${revision} REVISION (${revision_relative_time})"
-  echo "⬇ Review the git log for ${git_remote}/${git_release_branch} (committed ${remote_release_branch_relative_time}). ⬇"
-  git --no-pager log -1 "${git_remote}/${git_release_branch}"
-  echo "⬇ Review the git log for REVISION (committed ${revision_relative_time}). ⬇"
-  git --no-pager log -1 "${revision}"
-  echo
-fi
-
-if [ "${show_warning_prompt}" = 'true' ]; then
-  printf "WARNING: Unusual conditions detected! Are you sure you want to deploy? (y/n) "
-  read -r prompt_answer
-  if [ "${prompt_answer}" != "y" ]; then
-    echo "Aborting."
-    exit 1
-  fi
-fi
+system("#{shell_script_path}")
+exit $?.exitstatus
