@@ -39,7 +39,7 @@ git fetch "${git_remote}" "${git_release_branch}" || { echo "ERROR: git fetch fa
 
 show_warning_prompt='false'
 
-echo "Checking if there are any uncommiteted git state is clean..."
+echo "Checking if there are any uncommitted changes..."
 if [ -z "$(git status --porcelain)" ]; then
   echo "(check passed) Git state is clean. There are no uncommitted changes."
 else
