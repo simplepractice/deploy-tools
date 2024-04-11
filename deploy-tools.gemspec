@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
   s.authors     = ["Tony Nyurkin", "Serhii Voronoi", "George Pantazes"]
   s.email       = "infra@simplepractice.com"
   s.homepage    = "https://github.com/simplepractice/deploy-tools"
-  s.files       = `git ls-files `.split("\n")
+  s.files       = ["README.md", *Dir.glob("bin/*")]
   s.bindir      = "bin"
   s.executables = [
     "blue_green_switch",
