@@ -1,7 +1,5 @@
 # deploy-tools
 
-A ruby library/gem with deploy tools.
-
 ## Development
 
 Install development dependencies.
@@ -31,3 +29,19 @@ WARNING:  See https://guides.rubygems.org/specification-reference/ for help
 ```
 
 Create a [release on the Github repo](https://github.com/simplepractice/deploy-tools/releases). Attach the built gem file as a release asset.
+
+## Usage
+
+To see installation and usage of the `deploy-tools` gem, see examples in `Makefile`s in deployable repos.
+
+Example: [simplepractice/simplepractice Makefile L6L16-L20 (ff81396)](https://github.com/simplepractice/simplepractice/blob/ff8139631c546804aae9a9577ee04bc18b21c987/Makefile#L6-L20)
+
+```shell
+DEPLOY_TOOLS_VERSION = 0.1.4
+# ...
+echo "Downloading deploy-tools gem"
+wget -O deploy-tools.gem https://github.com/simplepractice/deploy-tools/releases/download/$(DEPLOY_TOOLS_VERSION)/deploy-tools-$(DEPLOY_TOOLS_VERSION).gem
+echo "Installing gem"
+gem install deploy-tools.gem
+rm deploy-tools.gem
+```
